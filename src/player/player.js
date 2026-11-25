@@ -26,12 +26,14 @@ export class Player {
     this.sprint = false;
     this.wish = new THREE.Vector3(); // desired horizontal move direction (world space, length <= 1)
     this._near = [];
+    this.ride = null; // car the player is standing on (moves with it)
     this.respawn();
   }
 
   respawn() {
     this.pos.copy(this.world.spawn);
     this.vel.set(0, 0, 0);
+    this.ride = null;
     this.yaw = this.world.spawnYaw ?? 0;
     this.pitch = 0;
   }
@@ -48,6 +50,10 @@ export class Player {
   step(dt, gadgets) {
     const v = this.vel;
 
+    // Standing on a car: move with it.
+    const ride = this.ride;
+    if (ride) this.pos.add(ride.delta);
+
     if (this.onGround) {
       const speed = this.sprint ? SPRINT_SPEED : WALK_SPEED;
       const k = Math.min(1, GROUND_ACCEL * dt);
@@ -56,6 +62,8 @@ export class Player {
       if (this.jumpQueued) {
         v.y = JUMP_SPEED;
         this.onGround = false;
+        // Jumping off a moving car keeps its momentum.
+        if (ride) v.addScaledVector(ride.delta, 1 / dt).setY(JUMP_SPEED);
       }
     } else if (this.wish.lengthSq() > 0) {
       const along = v.x * this.wish.x + v.z * this.wish.z;
@@ -73,9 +81,11 @@ export class Player {
     if (v.length() > MAX_SPEED) v.setLength(MAX_SPEED);
 
     this.onGround = false;
+    this.ride = null;
     this._move('x', v.x * dt);
     this._move('z', v.z * dt);
     this._move('y', v.y * dt);
+    this._resolveCars(dt);
 
     if (this.pos.y - HALF.y < 0) {
       this.pos.y = HALF.y;
@@ -103,5 +113,52 @@ export class Player {
         if (axis === 'y' && amount < 0) this.onGround = true;
       }
     }
+    for (const b of this.world.dynamic) {
+      if (!overlaps(p, b)) continue;
+      if (amount > 0) p[axis] = b.min[axis] - HALF[axis] - EPS;
+      else p[axis] = b.max[axis] + HALF[axis] + EPS;
+      this.vel[axis] = 0;
+      if (axis === 'y' && amount < 0) {
+        this.onGround = true;
+        this.ride = b.car;
+      }
+    }
   }
+
+  // Cars move into the player too: push the player out (onto the roof if they
+  // are near the top, otherwise sideways with a bump from the car).
+  _resolveCars(dt) {
+    const p = this.pos;
+    for (const b of this.world.dynamic) {
+      if (!overlaps(p, b)) continue;
+      const fromTop = b.max.y - (p.y - HALF.y);
+      if (fromTop < 0.7) {
+        p.y = b.max.y + HALF.y + EPS;
+        if (this.vel.y < 0) this.vel.y = 0;
+        this.onGround = true;
+        this.ride = b.car;
+        continue;
+      }
+      const penX = Math.min(p.x + HALF.x - b.min.x, b.max.x - (p.x - HALF.x));
+      const penZ = Math.min(p.z + HALF.z - b.min.z, b.max.z - (p.z - HALF.z));
+      const cx = (b.min.x + b.max.x) / 2;
+      const cz = (b.min.z + b.max.z) / 2;
+      if (penX < penZ) p.x += p.x < cx ? -penX - EPS : penX + EPS;
+      else p.z += p.z < cz ? -penZ - EPS : penZ + EPS;
+      const carSpeed = b.car.delta.length() / dt;
+      if (carSpeed > 2) {
+        this.vel.x = (b.car.delta.x / dt) * 1.2;
+        this.vel.z = (b.car.delta.z / dt) * 1.2;
+        this.vel.y = Math.max(this.vel.y, 4);
+      }
+    }
+  }
+}
+
+function overlaps(p, b) {
+  return (
+    p.x + HALF.x > b.min.x && p.x - HALF.x < b.max.x &&
+    p.y + HALF.y > b.min.y && p.y - HALF.y < b.max.y &&
+    p.z + HALF.z > b.min.z && p.z - HALF.z < b.max.z
+  );
 }

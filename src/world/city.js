@@ -152,6 +152,10 @@ export function createCity(scene, { seed = 1337, blocks = 10, blockSize = 44, ro
     name: 'City',
     buildings,
     grid,
+    // Road layout: road centre lines are at -half + k * period, for k = 0..blocks
+    // (plus the outskirts ring beyond that), each `road` metres wide.
+    roadGrid: { half, period, road, blocks, outskirts },
+    dynamic: [], // moving solid boxes (cars), filled in by the traffic system
     // Spawn at the central intersection, looking down an avenue.
     spawn: new THREE.Vector3(0, 1, 0),
     spawnYaw: 0,

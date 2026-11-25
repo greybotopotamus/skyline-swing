@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { Input } from './core/input.js';
 import { createCity } from './world/city.js';
+import { createRoadMarkings } from './world/roads.js';
+import { Traffic } from './world/traffic.js';
 import { createSky } from './world/sky.js';
 import { setMaxAnisotropy } from './world/textures.js';
 import { Player } from './player/player.js';
@@ -37,6 +39,8 @@ const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerH
 setMaxAnisotropy(renderer);
 const sky = createSky(scene, renderer);
 const world = createCity(scene);
+createRoadMarkings(scene, world.roadGrid);
+const traffic = new Traffic(scene, world, { count: 90 });
 const input = new Input(canvas);
 const player = new Player(world);
 const model = new PlayerModel(scene);
@@ -122,10 +126,12 @@ function frame() {
 
   acc += dt;
   while (acc >= STEP) {
+    traffic.step(STEP, player);
     player.step(STEP, gadgets);
     acc -= STEP;
   }
 
+  traffic.updateVisual();
   rig.update(dt, player);
   model.update(dt, player, { thrusting: jetpack.thrusting, visible: rig.mode === 'third', grapple });
 
@@ -144,4 +150,4 @@ function frame() {
 requestAnimationFrame(frame);
 
 // Handy for debugging from the browser console.
-window.game = { THREE, scene, camera, renderer, world, player, rig, grapple, jetpack, input };
+window.game = { THREE, scene, camera, renderer, world, player, rig, grapple, jetpack, input, traffic };
