@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { textureSet } from '../world/textures.js';
+import { faceTexture } from '../world/humanTextures.js';
 
 // Load a texture set and tile it over limb UVs (u around, v along the limb).
 function tiled(id, maps, rx, ry) {
@@ -76,6 +77,8 @@ export class PlayerModel {
       accent: new THREE.MeshStandardMaterial({ ...fabric(), color: 0xe07030 }),
       leather: new THREE.MeshStandardMaterial({ ...leather(), color: 0x6a4329 }),
       skin: new THREE.MeshStandardMaterial({ color: 0xc89274, roughness: 0.65 }),
+      // Painted face (mouth, nose shading, stubble); eyes sit under the goggles.
+      face: new THREE.MeshStandardMaterial({ color: 0xc89274, roughness: 0.62, map: faceTexture({ stubble: true }) }),
       metal: new THREE.MeshStandardMaterial({ color: 0x8a9099, roughness: 0.35, metalness: 0.85 }),
       brass: new THREE.MeshStandardMaterial({ color: 0xb8893e, roughness: 0.3, metalness: 0.9 }),
       lens: new THREE.MeshStandardMaterial({ color: 0x1b4a52, emissive: 0x3fd8c0, emissiveIntensity: 0.6, roughness: 0.1, metalness: 0.3 }),
@@ -113,8 +116,8 @@ export class PlayerModel {
     mesh(j.scarfTail, new THREE.BoxGeometry(0.06, 0.22, 0.012), M.scarf, { p: [0, -0.11, 0] });
 
     j.head = joint(j.neck, 0, 0.1, 0);
-    mesh(j.head, new THREE.SphereGeometry(0.105, 28, 20), M.skin, { p: [0, 0.035, 0], s: [0.92, 1.1, 1.0] });
-    mesh(j.head, new THREE.SphereGeometry(0.06, 16, 12), M.skin, { p: [0, -0.03, -0.035], s: [1.05, 0.9, 1.15] }); // jaw
+    // Face texture is painted on the sphere's +Z side; turn it to face forward (-Z).
+    mesh(j.head, new THREE.SphereGeometry(0.105, 32, 24).rotateY(Math.PI), M.face, { p: [0, 0.03, 0], s: [0.92, 1.16, 1.02] });
     mesh(j.head, new THREE.SphereGeometry(0.018, 10, 8), M.skin, { p: [0, 0.015, -0.108], s: [0.9, 1.2, 1.1] }); // nose
     for (const sx of [-1, 1]) mesh(j.head, new THREE.SphereGeometry(0.022, 10, 8), M.skin, { p: [sx * 0.096, 0.03, 0.005], s: [0.5, 1, 0.8] });
     // Aviator cap.
