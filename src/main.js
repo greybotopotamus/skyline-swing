@@ -12,6 +12,15 @@ import { Hud } from './ui/hud.js';
 const STEP = 1 / 120; // fixed physics step
 const MOUSE_SENS = 0.0022;
 const KEY_TURN = 14; // arrow-key turn speed, in "mouse pixels" per frame
+const EDGE_ZONE = 0.75; // cursor beyond 75% of the way to an edge starts turning
+const EDGE_TURN_SPEED = 3; // rad/s at the very edge
+
+// -1..1 cursor coordinate -> signed 0..1 turn amount inside the edge zone.
+function edgeTurn(c) {
+  const a = Math.abs(c);
+  if (a <= EDGE_ZONE) return 0;
+  return Math.sign(c) * Math.min(1, (a - EDGE_ZONE) / (1 - EDGE_ZONE));
+}
 
 const canvas = document.getElementById('game');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -60,7 +69,7 @@ function computeAim() {
   return world.raycast(aimOrigin, aimDir, grapple.range);
 }
 
-function handleInput() {
+function handleInput(dt) {
   const active = input.playing;
   lockHint.classList.toggle('hidden', !active || input.locked);
   if (active) {
@@ -69,6 +78,12 @@ function handleInput() {
     const tilt = (input.down('ArrowUp') ? -1 : 0) + (input.down('ArrowDown') ? 1 : 0);
     player.yaw -= (input.dx + turn * KEY_TURN) * MOUSE_SENS;
     player.pitch = THREE.MathUtils.clamp(player.pitch - (input.dy + tilt * KEY_TURN * 0.6) * MOUSE_SENS, -1.5, 1.5);
+    // Uncaptured mouse: holding the cursor near the left/right edge keeps turning,
+    // so you can still look all the way around.
+    if (!input.locked) {
+      player.yaw -= edgeTurn(input.cursorX) * EDGE_TURN_SPEED * dt;
+      player.pitch = THREE.MathUtils.clamp(player.pitch - edgeTurn(input.cursorY) * EDGE_TURN_SPEED * 0.5 * dt, -1.5, 1.5);
+    }
     if (input.justPressed('KeyV')) rig.toggle();
     if (input.justPressed('KeyR')) {
       grapple.release(player, false);
@@ -101,7 +116,7 @@ let acc = 0;
 function frame() {
   const dt = Math.min(clock.getDelta(), 0.1);
 
-  const aim = handleInput();
+  const aim = handleInput(dt);
 
   acc += dt;
   while (acc >= STEP) {

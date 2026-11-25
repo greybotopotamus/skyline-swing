@@ -39,10 +39,20 @@ export class Input {
     });
     document.addEventListener('pointerlockerror', () => { this.locked = false; });
 
+    // Cursor position in -1..1 (used for edge-turning when the mouse isn't captured).
+    this.cursorX = 0;
+    this.cursorY = 0;
     document.addEventListener('mousemove', (e) => {
+      this.cursorX = (e.clientX / window.innerWidth) * 2 - 1;
+      this.cursorY = (e.clientY / window.innerHeight) * 2 - 1;
       if (!this.playing) return;
       this.dx += e.movementX || 0;
       this.dy += e.movementY || 0;
+    });
+    // Cursor left the page (e.g. moved to another window): stop edge-turning.
+    document.documentElement.addEventListener('mouseleave', () => {
+      this.cursorX = 0;
+      this.cursorY = 0;
     });
     dom.addEventListener('mousedown', (e) => {
       if (!this.playing) return;
