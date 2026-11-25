@@ -11,6 +11,7 @@ import { Hud } from './ui/hud.js';
 
 const STEP = 1 / 120; // fixed physics step
 const MOUSE_SENS = 0.0022;
+const KEY_TURN = 14; // arrow-key turn speed, in "mouse pixels" per frame
 
 const canvas = document.getElementById('game');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -36,9 +37,12 @@ const gadgets = [jetpack, grapple];
 const hud = new Hud();
 
 const overlay = document.getElementById('overlay');
-overlay.addEventListener('click', () => input.requestLock());
-canvas.addEventListener('click', () => input.requestLock());
-document.addEventListener('pointerlockchange', () => overlay.classList.toggle('hidden', input.locked));
+const lockHint = document.getElementById('lock-hint');
+overlay.addEventListener('click', () => input.start());
+input.onPlayingChange = (playing) => {
+  overlay.classList.toggle('hidden', playing);
+  if (!playing) grapple.release(player, false);
+};
 
 window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
@@ -57,10 +61,14 @@ function computeAim() {
 }
 
 function handleInput() {
-  const active = input.locked;
+  const active = input.playing;
+  lockHint.classList.toggle('hidden', !active || input.locked);
   if (active) {
-    player.yaw -= input.dx * MOUSE_SENS;
-    player.pitch = THREE.MathUtils.clamp(player.pitch - input.dy * MOUSE_SENS, -1.5, 1.5);
+    // Arrow keys also turn the camera (handy when the mouse can't be captured).
+    const turn = (input.down('ArrowLeft') ? -1 : 0) + (input.down('ArrowRight') ? 1 : 0);
+    const tilt = (input.down('ArrowUp') ? -1 : 0) + (input.down('ArrowDown') ? 1 : 0);
+    player.yaw -= (input.dx + turn * KEY_TURN) * MOUSE_SENS;
+    player.pitch = THREE.MathUtils.clamp(player.pitch - (input.dy + tilt * KEY_TURN * 0.6) * MOUSE_SENS, -1.5, 1.5);
     if (input.justPressed('KeyV')) rig.toggle();
     if (input.justPressed('KeyR')) {
       grapple.release(player, false);

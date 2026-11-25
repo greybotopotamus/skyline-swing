@@ -21,7 +21,7 @@ npm run build    # production build in dist/
 | Input | Action |
 | --- | --- |
 | W A S D | Move / steer while swinging |
-| Mouse | Look |
+| Mouse / arrow keys | Look |
 | Left click (hold) | Fire grappling hook and swing; release to let go |
 | Right click (hold) | Reel in the rope |
 | Space | Jump; hold in the air for the jetpack |

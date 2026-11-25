@@ -1,4 +1,8 @@
-// Keyboard + mouse input with pointer lock.
+// Keyboard + mouse input.
+// The game is "playing" once the player clicks Play. We try to capture the mouse
+// (pointer lock) for proper mouse-look, but play continues without it: some
+// embedded browsers refuse pointer lock, and browsers also refuse it for about a
+// second after Esc. Without lock, plain mouse movement still turns the camera.
 // "pressed"/"released" sets are edge-triggered and cleared once per frame by endFrame().
 export class Input {
   constructor(dom) {
@@ -11,11 +15,14 @@ export class Input {
     this.dx = 0;
     this.dy = 0;
     this.locked = false;
+    this.playing = false;
+    this.onPlayingChange = null;
 
     window.addEventListener('keydown', (e) => {
+      if (e.code === 'Escape' && this.playing && !this.locked) this.setPlaying(false);
       if (!this.keys.has(e.code)) this.pressed.add(e.code);
       this.keys.add(e.code);
-      if (e.code === 'Space') e.preventDefault();
+      if (e.code === 'Space' || e.code.startsWith('Arrow')) e.preventDefault();
     });
     window.addEventListener('keyup', (e) => this.keys.delete(e.code));
     window.addEventListener('blur', () => {
@@ -24,18 +31,25 @@ export class Input {
     });
 
     document.addEventListener('pointerlockchange', () => {
+      const wasLocked = this.locked;
       this.locked = document.pointerLockElement === dom;
       if (!this.locked) this.buttons.clear();
+      // Leaving pointer lock (Esc) pauses the game.
+      if (wasLocked && !this.locked) this.setPlaying(false);
     });
+    document.addEventListener('pointerlockerror', () => { this.locked = false; });
+
     document.addEventListener('mousemove', (e) => {
-      if (!this.locked) return;
-      this.dx += e.movementX;
-      this.dy += e.movementY;
+      if (!this.playing) return;
+      this.dx += e.movementX || 0;
+      this.dy += e.movementY || 0;
     });
-    document.addEventListener('mousedown', (e) => {
-      if (!this.locked) return;
+    dom.addEventListener('mousedown', (e) => {
+      if (!this.playing) return;
       this.buttons.add(e.button);
       this.buttonsPressed.add(e.button);
+      // Retry mouse capture if it isn't active (e.g. it was refused right after Esc).
+      if (!this.locked) this.tryLock();
     });
     document.addEventListener('mouseup', (e) => {
       if (this.buttons.has(e.button)) this.buttonsReleased.add(e.button);
@@ -44,8 +58,26 @@ export class Input {
     document.addEventListener('contextmenu', (e) => e.preventDefault());
   }
 
-  requestLock() {
-    if (!this.locked) this.dom.requestPointerLock?.();
+  start() {
+    this.setPlaying(true);
+    this.tryLock();
+  }
+
+  tryLock() {
+    try {
+      const p = this.dom.requestPointerLock?.();
+      if (p && typeof p.catch === 'function') p.catch(() => {});
+    } catch {
+      // Pointer lock unavailable; free mouse-look fallback is used instead.
+    }
+  }
+
+  setPlaying(v) {
+    if (this.playing === v) return;
+    this.playing = v;
+    this.keys.clear();
+    this.buttons.clear();
+    this.onPlayingChange?.(v);
   }
 
   down(code) { return this.keys.has(code); }
