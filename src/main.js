@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { Input } from './core/input.js';
 import { createCity } from './world/city.js';
 import { createSky } from './world/sky.js';
+import { setMaxAnisotropy } from './world/textures.js';
 import { Player } from './player/player.js';
 import { PlayerModel } from './player/model.js';
 import { CameraRig } from './player/cameraRig.js';
@@ -33,7 +34,8 @@ renderer.toneMapping = THREE.ACESFilmicToneMapping;
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 5000);
 
-const sky = createSky(scene);
+setMaxAnisotropy(renderer);
+const sky = createSky(scene, renderer);
 const world = createCity(scene);
 const input = new Input(canvas);
 const player = new Player(world);

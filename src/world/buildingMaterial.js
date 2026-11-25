@@ -1,68 +1,32 @@
 import * as THREE from 'three';
+import { textureSet, useWorldUV } from './textures.js';
 
-// MeshStandardMaterial patched to draw a procedural window grid from world
-// position, so any building size gets correctly-scaled windows with no textures.
-export function createBuildingMaterial() {
-  const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.85, metalness: 0.05 });
+// Building styles. tile = metres covered by one repeat of the texture
+// (estimated from the floors/bays visible in each photo, ~3.5 m per floor).
+export const FACADES = [
+  { id: 'Facade001', name: 'glass', tileX: 34, tileY: 34, metalness: 0.35, brightness: 1.4 },
+  { id: 'Facade006', name: 'grid', tileX: 28, tileY: 28 },
+  { id: 'Facade018A', name: 'brick', tileX: 17.5, tileY: 17.5 },
+  { id: 'Facade019A', name: 'concrete', tileX: 17.5, tileY: 17.5 },
+];
 
-  mat.onBeforeCompile = (shader) => {
-    shader.vertexShader = shader.vertexShader
-      .replace(
-        '#include <common>',
-        `#include <common>
-        varying vec3 vBWorldPos;
-        varying vec3 vBWorldNormal;`
-      )
-      .replace(
-        '#include <project_vertex>',
-        `#include <project_vertex>
-        #ifdef USE_INSTANCING
-          vBWorldPos = (modelMatrix * instanceMatrix * vec4(transformed, 1.0)).xyz;
-          vBWorldNormal = normalize(mat3(modelMatrix) * mat3(instanceMatrix) * objectNormal);
-        #else
-          vBWorldPos = (modelMatrix * vec4(transformed, 1.0)).xyz;
-          vBWorldNormal = normalize(mat3(modelMatrix) * objectNormal);
-        #endif`
-      );
+// Materials for a box building, indexed like BoxGeometry's groups:
+// [+x, -x, +y (roof), -y (underside), +z, -z].
+export function createBuildingMaterials(facade, roofMaterial) {
+  const wall = useWorldUV(
+    new THREE.MeshStandardMaterial({
+      ...textureSet(facade.id, { metalness: true }),
+      metalness: facade.metalness ?? 0.6, // scaled by the metalness map: glass reflects, frames don't
+      roughness: 1,
+      envMapIntensity: 1.3,
+    }),
+    'facade',
+    facade.tileX,
+    facade.tileY
+  );
+  return [wall, wall, roofMaterial, roofMaterial, wall, wall];
+}
 
-    shader.fragmentShader = shader.fragmentShader
-      .replace(
-        '#include <common>',
-        `#include <common>
-        varying vec3 vBWorldPos;
-        varying vec3 vBWorldNormal;
-        float bHash(vec2 p) {
-          vec3 p3 = fract(vec3(p.xyx) * 0.1031);
-          p3 += dot(p3, p3.yzx + 33.33);
-          return fract((p3.x + p3.y) * p3.z);
-        }`
-      )
-      .replace(
-        '#include <color_fragment>',
-        `#include <color_fragment>
-        vec3 bN = abs(vBWorldNormal);
-        float bWall = step(bN.y, 0.5);
-        vec2 bG = bN.x > bN.z ? vBWorldPos.zy : vBWorldPos.xy;
-        vec2 bCellSize = vec2(3.0, 3.5);
-        vec2 bCell = fract(bG / bCellSize);
-        float bWin = step(0.18, bCell.x) * step(bCell.x, 0.82) * step(0.28, bCell.y) * step(bCell.y, 0.86);
-        bWin *= bWall * step(4.0, vBWorldPos.y);
-        float bLit = step(0.72, bHash(floor(bG / bCellSize) + floor(vBWorldPos.xz * 0.01)));
-        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.16, 0.22, 0.30), bWin * 0.85);
-        // Darker band at street level.
-        diffuseColor.rgb *= mix(0.55, 1.0, step(4.0, vBWorldPos.y) + (1.0 - bWall));`
-      )
-      .replace(
-        '#include <roughnessmap_fragment>',
-        `#include <roughnessmap_fragment>
-        roughnessFactor = mix(roughnessFactor, 0.18, bWin);`
-      )
-      .replace(
-        '#include <emissivemap_fragment>',
-        `#include <emissivemap_fragment>
-        totalEmissiveRadiance += bWin * bLit * vec3(1.0, 0.82, 0.55) * 0.35;`
-      );
-  };
-
-  return mat;
+export function createRoofMaterial() {
+  return useWorldUV(new THREE.MeshStandardMaterial({ ...textureSet('Concrete034'), color: 0xb8b4ac }), 'xz', 8, 4); // texture is 2:1
 }

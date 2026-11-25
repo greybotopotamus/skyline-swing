@@ -1,9 +1,19 @@
 import * as THREE from 'three';
 import { mulberry32 } from '../core/random.js';
 import { SpatialGrid, raycastBoxes } from '../physics/collision.js';
-import { createBuildingMaterial } from './buildingMaterial.js';
+import { FACADES, createBuildingMaterials, createRoofMaterial } from './buildingMaterial.js';
+import { textureSet, useWorldUV } from './textures.js';
 
-const PALETTE = [0xb8b2a7, 0x9aa3ab, 0xc9c1b3, 0x7d8790, 0xa89f94, 0x8e9aa6, 0xd6d0c4, 0x6f7780, 0xb39a85];
+// Subtle per-building tints multiplied over the facade photos.
+const TINTS = [0xffffff, 0xf2ece2, 0xe6ebf0, 0xfff6ea, 0xe9e9e9, 0xf5efe8];
+
+// Pick a facade style: glass/grid towers downtown, brick/concrete lower down.
+function pickFacade(rand, h) {
+  const r = rand();
+  if (h > 70) return r < 0.55 ? 0 : r < 0.85 ? 1 : 3;
+  if (h > 35) return r < 0.25 ? 0 : r < 0.5 ? 1 : r < 0.75 ? 3 : 2;
+  return r < 0.15 ? 1 : r < 0.6 ? 2 : 3;
+}
 
 // Procedural city: a grid of blocks separated by roads, each block split into
 // 1–4 lots. Buildings get taller toward the centre. Every building is an AABB
@@ -13,13 +23,14 @@ const PALETTE = [0xb8b2a7, 0x9aa3ab, 0xc9c1b3, 0x7d8790, 0xa89f94, 0x8e9aa6, 0xd
 // can be dropped in: { buildings, grid, spawn, spawnYaw, raycast(), dispose() }.
 export function createCity(scene, { seed = 1337, blocks = 10, blockSize = 44, road = 14 } = {}) {
   const rand = mulberry32(seed);
+  const styleRand = mulberry32(seed ^ 0x9e3779b9); // separate stream so styles don't change the layout
   const period = blockSize + road;
   const half = (blocks * period) / 2;
   const buildings = [];
   const slabs = [];
 
-  const addBuilding = (x0, z0, x1, z1, y0, y1, color) => {
-    buildings.push({ min: new THREE.Vector3(x0, y0, z0), max: new THREE.Vector3(x1, y1, z1), color });
+  const addBuilding = (x0, z0, x1, z1, y0, y1, color, style) => {
+    buildings.push({ min: new THREE.Vector3(x0, y0, z0), max: new THREE.Vector3(x1, y1, z1), color, style });
   };
 
   for (let i = 0; i < blocks; i++) {
@@ -55,15 +66,16 @@ export function createCity(scene, { seed = 1337, blocks = 10, blockSize = 44, ro
         let h = maxH * (0.3 + 0.7 * rand());
         if (rand() < 0.05) h *= 1.5;
         h = Math.max(10.5, Math.round(h / 3.5) * 3.5);
-        const color = PALETTE[Math.floor(rand() * PALETTE.length)];
-        addBuilding(x0, z0, x1, z1, 0, h, color);
+        const color = TINTS[Math.floor(styleRand() * TINTS.length)];
+        const style = pickFacade(styleRand, h);
+        addBuilding(x0, z0, x1, z1, 0, h, color, style);
 
         // Setback tier on some tall towers.
         if (h > 60 && rand() < 0.5) {
           const shrinkX = (x1 - x0) * (0.15 + rand() * 0.15);
           const shrinkZ = (z1 - z0) * (0.15 + rand() * 0.15);
           const tier = Math.round((h * (0.25 + rand() * 0.3)) / 3.5) * 3.5;
-          addBuilding(x0 + shrinkX, z0 + shrinkZ, x1 - shrinkX, z1 - shrinkZ, h, h + tier, color);
+          addBuilding(x0 + shrinkX, z0 + shrinkZ, x1 - shrinkX, z1 - shrinkZ, h, h + tier, color, style);
         }
       }
     }
@@ -72,37 +84,52 @@ export function createCity(scene, { seed = 1337, blocks = 10, blockSize = 44, ro
   // --- Meshes ---------------------------------------------------------------
   const objects = [];
 
-  const boxGeo = new THREE.BoxGeometry(1, 1, 1);
-  boxGeo.translate(0, 0.5, 0); // origin at the base
-  const bMesh = new THREE.InstancedMesh(boxGeo, createBuildingMaterial(), buildings.length);
   const m = new THREE.Matrix4();
   const q = new THREE.Quaternion();
   const c = new THREE.Color();
-  buildings.forEach((b, idx) => {
-    const size = b.max.clone().sub(b.min);
-    m.compose(new THREE.Vector3((b.min.x + b.max.x) / 2, b.min.y, (b.min.z + b.max.z) / 2), q, size);
-    bMesh.setMatrixAt(idx, m);
-    bMesh.setColorAt(idx, c.setHex(b.color));
-  });
-  bMesh.castShadow = true;
-  bMesh.receiveShadow = true;
-  objects.push(bMesh);
 
-  // Sidewalks / parks (visual only — thin enough to walk over).
+  // One instanced mesh per facade style; BoxGeometry groups give walls and roof separate materials.
+  const boxGeo = new THREE.BoxGeometry(1, 1, 1);
+  boxGeo.translate(0, 0.5, 0); // origin at the base
+  const roofMat = createRoofMaterial();
+  FACADES.forEach((facade, styleIdx) => {
+    const list = buildings.filter((b) => b.style === styleIdx);
+    if (!list.length) return;
+    const mesh = new THREE.InstancedMesh(boxGeo, createBuildingMaterials(facade, roofMat), list.length);
+    list.forEach((b, idx) => {
+      const size = b.max.clone().sub(b.min);
+      m.compose(new THREE.Vector3((b.min.x + b.max.x) / 2, b.min.y, (b.min.z + b.max.z) / 2), q, size);
+      mesh.setMatrixAt(idx, m);
+      mesh.setColorAt(idx, c.setHex(b.color).multiplyScalar(facade.brightness ?? 1));
+    });
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    objects.push(mesh);
+  });
+
+  // Sidewalk paving and park grass (visual only — thin enough to walk over).
   const slabGeo = new THREE.BoxGeometry(blockSize, 0.12, blockSize);
   slabGeo.translate(0, 0.06, 0);
-  const slabMesh = new THREE.InstancedMesh(slabGeo, new THREE.MeshStandardMaterial({ roughness: 0.95 }), slabs.length);
-  slabs.forEach((s, idx) => {
-    m.makeTranslation(s.x, 0, s.z);
-    slabMesh.setMatrixAt(idx, m);
-    slabMesh.setColorAt(idx, c.setHex(s.park ? 0x4f7a3a : 0x8d8d88));
-  });
-  slabMesh.receiveShadow = true;
-  objects.push(slabMesh);
+  const slabKinds = [
+    { park: false, mat: useWorldUV(new THREE.MeshStandardMaterial({ ...textureSet('PavingStones128'), color: 0xd8d4cc }), 'xz', 3) },
+    { park: true, mat: useWorldUV(new THREE.MeshStandardMaterial({ ...textureSet('Grass004') }), 'xz', 4) },
+  ];
+  for (const kind of slabKinds) {
+    const list = slabs.filter((s) => s.park === kind.park);
+    if (!list.length) continue;
+    const mesh = new THREE.InstancedMesh(slabGeo, kind.mat, list.length);
+    list.forEach((s, idx) => {
+      m.makeTranslation(s.x, 0, s.z);
+      mesh.setMatrixAt(idx, m);
+    });
+    mesh.receiveShadow = true;
+    objects.push(mesh);
+  }
 
+  // Roads: asphalt everywhere under the blocks.
   const ground = new THREE.Mesh(
     new THREE.PlaneGeometry(6000, 6000),
-    new THREE.MeshStandardMaterial({ color: 0x55585e, roughness: 1 })
+    useWorldUV(new THREE.MeshStandardMaterial({ ...textureSet('Asphalt033'), color: 0xd0d0d0 }), 'xz', 5)
   );
   ground.rotation.x = -Math.PI / 2;
   ground.receiveShadow = true;
@@ -127,7 +154,7 @@ export function createCity(scene, { seed = 1337, blocks = 10, blockSize = 44, ro
       for (const o of objects) {
         scene.remove(o);
         o.geometry.dispose();
-        o.material.dispose();
+        for (const mat of [].concat(o.material)) mat.dispose();
       }
     },
   };

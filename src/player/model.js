@@ -1,4 +1,12 @@
 import * as THREE from 'three';
+import { textureSet } from '../world/textures.js';
+
+// Load a texture set and tile it over limb UVs (u around, v along the limb).
+function tiled(id, maps, rx, ry) {
+  const set = textureSet(id, { maps });
+  for (const t of Object.values(set)) t.repeat.set(rx, ry);
+  return set;
+}
 
 // Procedurally built, procedurally animated humanoid: an aviator-inventor in a
 // flight suit with goggles, harness, wrist grapple launcher and twin-tank jetpack.
@@ -59,11 +67,14 @@ export class PlayerModel {
   }
 
   _build() {
+    // Woven fabric (Fabric081C) for the suit, grained leather (Leather026) for straps, gloves, boots and cap.
+    const fabric = () => tiled('Fabric081C', ['color', 'normal', 'roughness'], 6, 6);
+    const leather = () => tiled('Leather026', ['normal', 'roughness'], 3, 3);
     const M = {
-      suit: new THREE.MeshStandardMaterial({ color: 0x2f4a72, roughness: 0.85 }),
-      suitDark: new THREE.MeshStandardMaterial({ color: 0x1a2436, roughness: 0.9 }),
-      accent: new THREE.MeshStandardMaterial({ color: 0xd8692a, roughness: 0.6 }),
-      leather: new THREE.MeshStandardMaterial({ color: 0x5a3a24, roughness: 0.7 }),
+      suit: new THREE.MeshStandardMaterial({ ...fabric(), color: 0x2e4466, normalScale: new THREE.Vector2(0.8, 0.8) }),
+      suitDark: new THREE.MeshStandardMaterial({ ...fabric(), color: 0x222d42 }),
+      accent: new THREE.MeshStandardMaterial({ ...fabric(), color: 0xe07030 }),
+      leather: new THREE.MeshStandardMaterial({ ...leather(), color: 0x6a4329 }),
       skin: new THREE.MeshStandardMaterial({ color: 0xc89274, roughness: 0.65 }),
       metal: new THREE.MeshStandardMaterial({ color: 0x8a9099, roughness: 0.35, metalness: 0.85 }),
       brass: new THREE.MeshStandardMaterial({ color: 0xb8893e, roughness: 0.3, metalness: 0.9 }),

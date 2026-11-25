@@ -39,7 +39,9 @@ src/
   physics/collision.js  AABB spatial grid + ray vs box tests
   player/               Player physics body, placeholder model, camera rig (1st/3rd person)
   gadgets/              Inventions: grapple.js, jetpack.js
-  world/                Environments: procedural city, building window shader, sky + lighting
+  world/                Environments: procedural city, PBR textures (world-space UVs), sky + lighting
+public/textures/        CC0 PBR texture sets from ambientCG (see CREDITS.md)
+scripts/                optimize-textures.mjs: re-encode textures for the web
   ui/hud.js             HUD (fuel, speed, view, crosshair)
 ```
 
