@@ -36,3 +36,5 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: #000; font
 #overlay .sub { margin: 6px 0 18px; color: #4ff0c8; }
 #overlay td { padding: 3px 18px 3px 0; font-size: 14px; }
 #overlay td:first-child { font-weight: 600; white-space: nowrap; opacity: 0.85; }
+
+#hud .hint { opacity: 0.5; }

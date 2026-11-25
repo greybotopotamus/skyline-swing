@@ -27,6 +27,7 @@ npm run build    # production build in dist/
 | Space | Jump; hold in the air for the jetpack |
 | Shift | Sprint |
 | V | Toggle 1st / 3rd person |
+| G | Graphics quality: High / Medium / Low |
 | R | Respawn |
 | Esc | Pause (release the mouse) |
 
@@ -41,7 +42,8 @@ src/
   gadgets/              Inventions: grapple.js, jetpack.js
   world/                Environments: procedural city, PBR textures (world-space UVs), sky + lighting,
                         road markings (roads.js), traffic sim + lights (traffic.js), car models (carModels.js),
-                        pedestrians (pedestrians.js)
+                        pedestrians (pedestrians.js), trees (trees.js), rooftop props + street lamps (props.js)
+  render/post.js        Post-processing (GTAO ambient occlusion, bloom, MSAA, colour grade) + quality levels
 public/textures/        CC0 PBR texture sets from ambientCG (see CREDITS.md)
 public/sky/             CC0 HDR sky from Poly Haven (see CREDITS.md)
 scripts/                optimize-textures.mjs: re-encode textures for the web

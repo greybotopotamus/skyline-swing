@@ -4,6 +4,9 @@ import { createCity } from './world/city.js';
 import { createRoadMarkings } from './world/roads.js';
 import { Traffic } from './world/traffic.js';
 import { Pedestrians } from './world/pedestrians.js';
+import { createTrees } from './world/trees.js';
+import { createRooftops, createStreetLamps } from './world/props.js';
+import { PostFX, QUALITY } from './render/post.js';
 import { createSky } from './world/sky.js';
 import { setMaxAnisotropy } from './world/textures.js';
 import { Player } from './player/player.js';
@@ -27,11 +30,12 @@ function edgeTurn(c) {
 }
 
 const canvas = document.getElementById('game');
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+// Anti-aliasing is done in the post-processing chain (MSAA render target / FXAA).
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.type = THREE.PCFShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 
 const scene = new THREE.Scene();
@@ -41,6 +45,9 @@ setMaxAnisotropy(renderer);
 const sky = createSky(scene, renderer);
 const world = createCity(scene);
 createRoadMarkings(scene, world.roadGrid);
+createRooftops(scene, world);
+createStreetLamps(scene, world);
+const trees = createTrees(scene, world);
 const traffic = new Traffic(scene, world, { count: 90 });
 const pedestrians = new Pedestrians(scene, world, traffic, { count: 220 });
 traffic.pedestrians = pedestrians;
@@ -53,6 +60,10 @@ const jetpack = new Jetpack();
 // Order matters: forces first, rope constraint last.
 const gadgets = [jetpack, grapple];
 const hud = new Hud();
+const post = new PostFX(renderer, scene, camera, { sun: sky.sun, hideForAO: trees.foliage });
+const gfxLabel = document.getElementById('gfx');
+post.onChange = (name) => { gfxLabel.textContent = name; };
+gfxLabel.textContent = QUALITY[post.level];
 
 const overlay = document.getElementById('overlay');
 const lockHint = document.getElementById('lock-hint');
@@ -66,6 +77,7 @@ window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
+  post.resize();
 });
 
 const aimDir = new THREE.Vector3();
@@ -94,6 +106,7 @@ function handleInput(dt) {
       player.pitch = THREE.MathUtils.clamp(player.pitch - edgeTurn(input.cursorY) * EDGE_TURN_SPEED * 0.5 * dt, -1.5, 1.5);
     }
     if (input.justPressed('KeyV')) rig.toggle();
+    if (input.justPressed('KeyG')) post.cycle();
     if (input.justPressed('KeyR')) {
       grapple.release(player, false);
       player.respawn();
@@ -119,11 +132,12 @@ function handleInput(dt) {
   return aim;
 }
 
-const clock = new THREE.Clock();
+const timer = new THREE.Timer();
 let acc = 0;
 
-function frame() {
-  const dt = Math.min(clock.getDelta(), 0.1);
+function frame(timestamp) {
+  timer.update(timestamp);
+  const dt = Math.min(timer.getDelta(), 0.1);
 
   const aim = handleInput(dt);
 
@@ -136,6 +150,7 @@ function frame() {
 
   traffic.updateVisual();
   pedestrians.update(dt, player);
+  trees.update(timer.getElapsed());
   rig.update(dt, player);
   model.update(dt, player, { thrusting: jetpack.thrusting, visible: rig.mode === 'third', grapple });
 
@@ -147,11 +162,11 @@ function frame() {
   hud.update({ player, jetpack, rig, canGrapple: !!aim });
 
   input.endFrame();
-  renderer.render(scene, camera);
+  post.render(dt);
   requestAnimationFrame(frame);
 }
 
 requestAnimationFrame(frame);
 
 // Handy for debugging from the browser console.
-window.game = { THREE, scene, camera, renderer, world, player, rig, grapple, jetpack, input, traffic, pedestrians };
+window.game = { THREE, scene, camera, renderer, world, player, rig, grapple, jetpack, input, traffic, pedestrians, trees, post };

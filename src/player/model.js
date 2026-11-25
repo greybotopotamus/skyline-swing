@@ -72,13 +72,15 @@ export class PlayerModel {
     const fabric = () => tiled('Fabric081C', ['color', 'normal', 'roughness'], 6, 6);
     const leather = () => tiled('Leather026', ['normal', 'roughness'], 3, 3);
     const M = {
-      suit: new THREE.MeshStandardMaterial({ ...fabric(), color: 0x2e4466, normalScale: new THREE.Vector2(0.8, 0.8) }),
-      suitDark: new THREE.MeshStandardMaterial({ ...fabric(), color: 0x222d42 }),
-      accent: new THREE.MeshStandardMaterial({ ...fabric(), color: 0xe07030 }),
-      leather: new THREE.MeshStandardMaterial({ ...leather(), color: 0x6a4329 }),
-      skin: new THREE.MeshStandardMaterial({ color: 0xc89274, roughness: 0.65 }),
+      // Cloth uses "sheen" (soft rim highlight of fibres); leather gets a thin waxy clearcoat;
+      // skin a little sheen for peach fuzz.
+      suit: new THREE.MeshPhysicalMaterial({ ...fabric(), color: 0x273a57, normalScale: new THREE.Vector2(0.8, 0.8), sheen: 0.6, sheenRoughness: 0.75, sheenColor: new THREE.Color(0x5d7090) }),
+      suitDark: new THREE.MeshPhysicalMaterial({ ...fabric(), color: 0x222d42, sheen: 1, sheenRoughness: 0.75, sheenColor: new THREE.Color(0x5a6b88) }),
+      accent: new THREE.MeshPhysicalMaterial({ ...fabric(), color: 0xc8622a, sheen: 0.5, sheenRoughness: 0.75, sheenColor: new THREE.Color(0xd99060) }),
+      leather: new THREE.MeshPhysicalMaterial({ ...leather(), color: 0x6a4329, clearcoat: 0.3, clearcoatRoughness: 0.45 }),
+      skin: new THREE.MeshPhysicalMaterial({ color: 0xc89274, roughness: 0.55, sheen: 0.35, sheenRoughness: 0.6, sheenColor: new THREE.Color(0xffd2b8) }),
       // Painted face (mouth, nose shading, stubble); eyes sit under the goggles.
-      face: new THREE.MeshStandardMaterial({ color: 0xc89274, roughness: 0.62, map: faceTexture({ stubble: true }) }),
+      face: new THREE.MeshPhysicalMaterial({ color: 0xc89274, roughness: 0.55, map: faceTexture({ stubble: true }), sheen: 0.35, sheenRoughness: 0.6, sheenColor: new THREE.Color(0xffd2b8) }),
       metal: new THREE.MeshStandardMaterial({ color: 0x8a9099, roughness: 0.35, metalness: 0.85 }),
       brass: new THREE.MeshStandardMaterial({ color: 0xb8893e, roughness: 0.3, metalness: 0.9 }),
       lens: new THREE.MeshStandardMaterial({ color: 0x1b4a52, emissive: 0x3fd8c0, emissiveIntensity: 0.6, roughness: 0.1, metalness: 0.3 }),
@@ -95,11 +97,21 @@ export class PlayerModel {
     mesh(j.hips, new THREE.BoxGeometry(0.06, 0.05, 0.02), M.brass, { p: [0, 0.06, -0.118] });
     mesh(j.hips, new THREE.BoxGeometry(0.07, 0.08, 0.05), M.leather, { p: [0.15, 0.0, -0.03] }); // utility pouch
 
+    for (const sx of [-1, 1]) mesh(j.hips, new THREE.SphereGeometry(0.085, 14, 10), M.suitDark, { p: [sx * 0.07, -0.01, 0.05], s: [1, 1.05, 0.9] }); // glutes
+
     j.spine = joint(j.hips, 0, 0.08, 0);
-    mesh(j.spine, limbGeo(0.2, 0.15, 0.135, 0, 0.5), M.suit, { p: [0, 0.2, 0], s: [1.05, 1, 0.7] });
+    mesh(j.spine, limbGeo(0.2, 0.15, 0.128, 0.006, 0.5), M.suit, { p: [0, 0.2, 0], s: [1.02, 1, 0.68] }); // waist tapers in
 
     j.chest = joint(j.spine, 0, 0.2, 0);
-    mesh(j.chest, limbGeo(0.25, 0.155, 0.15, 0.03, 0.35), M.suit, { p: [0, 0.27, 0], s: [1.2, 1, 0.68] });
+    mesh(j.chest, limbGeo(0.25, 0.158, 0.14, 0.032, 0.35), M.suit, { p: [0, 0.27, 0], s: [1.24, 1, 0.68] });
+    // Pecs and lats give the chest shape; trapezius slopes from neck to shoulders.
+    for (const sx of [-1, 1]) {
+      mesh(j.chest, new THREE.SphereGeometry(0.075, 14, 10), M.suit, { p: [sx * 0.07, 0.17, -0.07], s: [1.15, 0.75, 0.55] });
+      mesh(j.chest, new THREE.SphereGeometry(0.08, 14, 10), M.suit, { p: [sx * 0.13, 0.1, 0.01], s: [0.6, 1.2, 0.9] });
+    }
+    mesh(j.chest, new THREE.SphereGeometry(0.12, 18, 10), M.suit, { p: [0, 0.245, 0.01], s: [1.65, 0.45, 0.85] });
+    mesh(j.chest, new THREE.TorusGeometry(0.072, 0.016, 8, 20), M.suitDark, { p: [0, 0.27, 0], r: [Math.PI / 2, 0, 0], s: [1.1, 0.95, 1] }); // collar
+    mesh(j.chest, new THREE.BoxGeometry(0.012, 0.24, 0.006), M.metal, { p: [0, 0.15, -0.113], r: [0.1, 0, 0] }); // zip
     // Harness straps.
     for (const sx of [-1, 1]) {
       mesh(j.chest, new THREE.BoxGeometry(0.035, 0.3, 0.012), M.leather, { p: [sx * 0.085, 0.14, -0.112], r: [0.08, 0, sx * 0.12] });
@@ -139,8 +151,14 @@ export class PlayerModel {
       mesh(el, limbGeo(0.25, 0.046, 0.035, 0.009, 0.25), M.suit);
       mesh(el, limbGeo(0.08, 0.042, 0.041), M.leather, { p: [0, -0.17, 0] }); // glove cuff
       const hand = (j['hand' + side] = joint(el, 0, -0.26, 0));
-      mesh(hand, new THREE.SphereGeometry(0.05, 14, 10), M.leather, { p: [0, -0.045, 0], s: [0.75, 1.25, 0.5] }); // palm + fingers
-      mesh(hand, limbGeo(0.045, 0.016, 0.014), M.leather, { p: [-sx * 0.035, -0.02, -0.02], r: [-0.4, 0, -sx * 0.6] }); // thumb
+      mesh(hand, new THREE.SphereGeometry(0.045, 14, 10), M.leather, { p: [0, -0.04, 0], s: [0.62, 1.0, 1.05] }); // palm
+      // Four fingers, slightly curled, and an opposable thumb.
+      for (let f = 0; f < 4; f++) {
+        const fz = -0.03 + f * 0.02;
+        const len = [0.07, 0.078, 0.074, 0.062][f];
+        mesh(hand, limbGeo(len, 0.012, 0.0105), M.leather, { p: [0, -0.078, fz], r: [0.25, 0, -sx * 0.18] });
+      }
+      mesh(hand, limbGeo(0.055, 0.015, 0.012), M.leather, { p: [-sx * 0.012, -0.03, -0.045], r: [-0.7, 0, -sx * 0.5] }); // thumb
       if (side === 'R') {
         // Wrist-mounted grapple launcher.
         mesh(el, new THREE.BoxGeometry(0.07, 0.12, 0.06), M.metal, { p: [0, -0.15, -0.045] });
@@ -162,6 +180,7 @@ export class PlayerModel {
       const ankle = (j['ankle' + side] = joint(knee, 0, -0.41, 0));
       mesh(ankle, limbGeo(0.2, 0.05, 0.052), M.leather, { p: [0, -0.02, 0.05], r: [Math.PI / 2, 0, 0], s: [1.05, 1, 0.65] });
       mesh(ankle, new THREE.BoxGeometry(0.1, 0.02, 0.27), M.suitDark, { p: [0, -0.05, -0.045] }); // sole
+      mesh(ankle, new THREE.BoxGeometry(0.09, 0.035, 0.07), M.suitDark, { p: [0, -0.04, 0.06] }); // heel
     }
 
     // --- Jetpack --------------------------------------------------------------

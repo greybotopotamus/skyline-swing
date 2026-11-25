@@ -29,6 +29,7 @@ export function createCity(scene, { seed = 1337, blocks = 10, blockSize = 44, ro
   const buildings = []; // playable: solid + grappleable
   const scenery = []; // outskirts ring: visual only, keeps the skyline going to the horizon
   const slabs = [];
+  const parks = []; // block indices {i, j} that are parks (trees go there)
   // Separate random streams for the outskirts so the playable city layout never changes.
   const outRand = mulberry32(seed ^ 0x51ed270b);
   const outStyleRand = mulberry32(seed ^ 0x2545f491);
@@ -49,6 +50,7 @@ export function createCity(scene, { seed = 1337, blocks = 10, blockSize = 44, ro
       const dist = Math.hypot(cx, cz);
       const park = dist > 60 && rand() < 0.08;
       slabs.push({ x: cx, z: cz, park });
+      if (park) parks.push({ i, j });
       if (park) continue;
 
       const maxH = 28 + 170 * Math.exp(-((dist / 170) ** 2));
@@ -151,6 +153,8 @@ export function createCity(scene, { seed = 1337, blocks = 10, blockSize = 44, ro
   return {
     name: 'City',
     buildings,
+    scenery, // outskirts buildings (visual only)
+    parks,
     grid,
     // Road layout: road centre lines are at -half + k * period, for k = 0..blocks
     // (plus the outskirts ring beyond that), each `road` metres wide.

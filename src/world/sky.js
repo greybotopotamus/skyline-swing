@@ -41,6 +41,7 @@ export function createSky(scene, renderer) {
   s.left = -90; s.right = 90; s.top = 90; s.bottom = -90; s.near = 1; s.far = 700;
   sun.shadow.bias = -0.0005;
   sun.shadow.normalBias = 0.05;
+  sun.shadow.radius = 3; // softer shadow edges
   scene.add(sun, sun.target);
 
   const sunDir = new THREE.Vector3(160, 260, 100).normalize();
@@ -64,6 +65,7 @@ export function createSky(scene, renderer) {
   });
 
   return {
+    sun,
     update(focus, cameraPos) {
       dome.position.copy(cameraPos);
       sun.position.copy(focus).addScaledVector(sunDir, SUN_DISTANCE);
