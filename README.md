@@ -52,7 +52,7 @@ An environment is a function like `createCity(scene, options)` that returns `{ b
 ## Roadmap ideas
 - More inventions: glider wings, wall-run boots, zip-line launcher, magnet gloves
 - More environments: canyon, docks/harbour, forest canopy, floating sky islands
-- Rigged character model with swing / fly / run animations
+- Hand-authored animation polish (landing, wall contact) or a rigged glTF character
 - Time trials, collectibles, checkpoint races
 - Day/night cycle and lit windows at night
 - Gamepad and touch controls

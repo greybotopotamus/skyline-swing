@@ -102,7 +102,7 @@ function frame() {
   }
 
   rig.update(dt, player);
-  model.update(dt, player, { thrusting: jetpack.thrusting, visible: rig.mode === 'third' });
+  model.update(dt, player, { thrusting: jetpack.thrusting, visible: rig.mode === 'third', grapple });
 
   if (rig.mode === 'third') model.handPosition(hand);
   else hand.copy(camera.position).addScaledVector(player.right, 0.3).add(new THREE.Vector3(0, -0.35, 0));
