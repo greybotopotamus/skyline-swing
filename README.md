@@ -2,6 +2,8 @@
 
 A browser-based 3D traversal game. Swing through a procedurally generated city with a grappling hook, boost around with a jetpack, and (soon) more inventions. Play in first or third person.
 
+**▶ Play: https://greybotopotamus.github.io/skyline-swing/**
+
 Built with [three.js](https://threejs.org/) and [Vite](https://vite.dev/).
 
 ## Getting started
@@ -54,4 +56,3 @@ An environment is a function like `createCity(scene, options)` that returns `{ b
 - Time trials, collectibles, checkpoint races
 - Day/night cycle and lit windows at night
 - Gamepad and touch controls
-- Deploy to GitHub Pages
