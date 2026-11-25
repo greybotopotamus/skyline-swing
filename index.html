@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Skyline Swing</title>
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <canvas id="game"></canvas>
+
+    <div id="crosshair"></div>
+
+    <div id="hud">
+      <div class="row"><span class="label">Jetpack</span><div class="bar"><div id="fuel"></div></div></div>
+      <div class="row"><span class="label">Speed</span><span id="speed">0</span> m/s</div>
+      <div class="row"><span class="label">View</span><span id="view">3rd person</span></div>
+    </div>
+
+    <div id="overlay">
+      <div class="panel">
+        <h1>Skyline Swing</h1>
+        <p class="sub">Click to play</p>
+        <table>
+          <tr><td>W A S D</td><td>Move / steer swing</td></tr>
+          <tr><td>Mouse</td><td>Look</td></tr>
+          <tr><td>Left click (hold)</td><td>Fire grappling hook &amp; swing — release to let go</td></tr>
+          <tr><td>Right click (hold)</td><td>Reel in the rope</td></tr>
+          <tr><td>Space</td><td>Jump — hold in the air for jetpack</td></tr>
+          <tr><td>Shift</td><td>Sprint</td></tr>
+          <tr><td>V</td><td>Toggle 1st / 3rd person</td></tr>
+          <tr><td>R</td><td>Respawn</td></tr>
+          <tr><td>Esc</td><td>Pause</td></tr>
+        </table>
+      </div>
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
