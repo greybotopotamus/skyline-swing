@@ -141,7 +141,7 @@ function frame() {
 
   if (rig.mode === 'third') model.handPosition(hand);
   else hand.copy(camera.position).addScaledVector(player.right, 0.3).add(new THREE.Vector3(0, -0.35, 0));
-  grapple.updateVisual(hand);
+  grapple.updateVisual(hand, dt);
 
   sky.update(player.pos, camera.position);
   hud.update({ player, jetpack, rig, canGrapple: !!aim });

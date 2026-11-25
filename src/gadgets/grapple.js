@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { RopeVisual } from './ropeVisual.js';
 
 const RANGE = 140;
 const HOOK_SPEED = 280; // m/s the hook travels before latching
@@ -23,12 +24,7 @@ export class Grapple {
     this.fireDist = 0;
     this.reeling = false;
 
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(6), 3));
-    this.rope = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: 0xeaf6ff }));
-    this.rope.frustumCulled = false;
-    this.rope.visible = false;
-    scene.add(this.rope);
+    this.rope = new RopeVisual(scene);
   }
 
   // aim: result of the camera raycast ({ point, distance } or null)
@@ -98,19 +94,11 @@ export class Grapple {
     }
   }
 
-  updateVisual(handPos) {
-    if (this.state === 'idle') {
-      this.rope.visible = false;
-      return;
-    }
-    const end =
+  updateVisual(handPos, dt) {
+    const hookPos =
       this.state === 'firing'
         ? handPos.clone().lerp(this.anchor, Math.min(1, this.travel / Math.max(this.fireDist, 1e-3)))
         : this.anchor;
-    const arr = this.rope.geometry.attributes.position.array;
-    arr[0] = handPos.x; arr[1] = handPos.y; arr[2] = handPos.z;
-    arr[3] = end.x; arr[4] = end.y; arr[5] = end.z;
-    this.rope.geometry.attributes.position.needsUpdate = true;
-    this.rope.visible = true;
+    this.rope.update(dt, handPos, this.state, hookPos);
   }
 }
