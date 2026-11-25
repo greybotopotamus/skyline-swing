@@ -7,7 +7,7 @@ import * as THREE from 'three';
 //
 // The visual length lags behind the real distance (the winch takes a moment
 // to reel in), so the rope sags and swings when slack, whips when it latches,
-// bends behind fast moves, and falls and snaps back when released.
+// and bends behind fast moves. Letting go retracts it instantly.
 
 const N = 30; // segments
 const RADIAL = 6;
@@ -16,7 +16,6 @@ const GRAVITY = new THREE.Vector3(0, -22, 0);
 const DAMPING = 0.985;
 const ITERATIONS = 14;
 const REEL_SPEED = 10; // m/s the winch takes up slack (swing up toward the anchor faster than this and it goes slack)
-const RETRACT_SPEED = 70; // m/s the rope snaps back after release
 const BASE_SLACK = 1.003; // a taut rope still sags a little
 
 function braidTexture() {
@@ -80,7 +79,7 @@ export class RopeVisual {
     this.p = Array.from({ length: N + 1 }, () => new THREE.Vector3());
     this.prev = Array.from({ length: N + 1 }, () => new THREE.Vector3());
     this.length = 0;
-    this.mode = 'hidden'; // hidden | out (hook flying or attached) | retract
+    this.mode = 'hidden'; // hidden | out (hook flying or attached)
     this.endPinned = false;
 
     // Tube mesh with preallocated buffers, rebuilt in place each frame.
@@ -151,8 +150,11 @@ export class RopeVisual {
       this.mode = 'out';
       this.length = 0.3;
     } else if (!active && this.mode === 'out') {
-      this.mode = 'retract';
+      // Released: the rope retracts instantly.
+      this.mode = 'hidden';
       this.endPinned = false;
+      this.mesh.visible = false;
+      this.hook.visible = false;
     }
     if (this.mode === 'hidden') {
       this._lastState = state;
@@ -175,14 +177,6 @@ export class RopeVisual {
         this.length = this.length < taut ? taut : Math.max(taut, this.length - REEL_SPEED * dt);
       }
       this.endPinned = state === 'attached' || state === 'firing';
-    } else {
-      this.length -= RETRACT_SPEED * dt;
-      if (this.length <= 0.3) {
-        this.mode = 'hidden';
-        this.mesh.visible = false;
-        this.hook.visible = false;
-        return;
-      }
     }
 
     const rest = this.length / N;
