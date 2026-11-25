@@ -21,20 +21,27 @@ function pickFacade(rand, h) {
 //
 // Environments share this return shape so new ones (canyon, docks, forest...)
 // can be dropped in: { buildings, grid, spawn, spawnYaw, raycast(), dispose() }.
-export function createCity(scene, { seed = 1337, blocks = 10, blockSize = 44, road = 14 } = {}) {
-  const rand = mulberry32(seed);
-  const styleRand = mulberry32(seed ^ 0x9e3779b9); // separate stream so styles don't change the layout
+export function createCity(scene, { seed = 1337, blocks = 10, blockSize = 44, road = 14, outskirts = 5 } = {}) {
+  const coreRand = mulberry32(seed);
+  const coreStyleRand = mulberry32(seed ^ 0x9e3779b9); // styles/tints use their own stream, separate from the layout
   const period = blockSize + road;
   const half = (blocks * period) / 2;
-  const buildings = [];
+  const buildings = []; // playable: solid + grappleable
+  const scenery = []; // outskirts ring: visual only, keeps the skyline going to the horizon
   const slabs = [];
+  // Separate random streams for the outskirts so the playable city layout never changes.
+  const outRand = mulberry32(seed ^ 0x51ed270b);
+  const outStyleRand = mulberry32(seed ^ 0x2545f491);
 
-  const addBuilding = (x0, z0, x1, z1, y0, y1, color, style) => {
-    buildings.push({ min: new THREE.Vector3(x0, y0, z0), max: new THREE.Vector3(x1, y1, z1), color, style });
-  };
-
-  for (let i = 0; i < blocks; i++) {
-    for (let j = 0; j < blocks; j++) {
+  for (let i = -outskirts; i < blocks + outskirts; i++) {
+    for (let j = -outskirts; j < blocks + outskirts; j++) {
+      const core = i >= 0 && i < blocks && j >= 0 && j < blocks;
+      const rand = core ? coreRand : outRand;
+      const styleRand = core ? coreStyleRand : outStyleRand;
+      const target = core ? buildings : scenery;
+      const addBuilding = (x0, z0, x1, z1, y0, y1, color, style) => {
+        target.push({ min: new THREE.Vector3(x0, y0, z0), max: new THREE.Vector3(x1, y1, z1), color, style });
+      };
       const bx = -half + i * period + road / 2;
       const bz = -half + j * period + road / 2;
       const cx = bx + blockSize / 2;
@@ -66,6 +73,7 @@ export function createCity(scene, { seed = 1337, blocks = 10, blockSize = 44, ro
         let h = maxH * (0.3 + 0.7 * rand());
         if (rand() < 0.05) h *= 1.5;
         h = Math.max(10.5, Math.round(h / 3.5) * 3.5);
+        if (core) rand(); // the original city drew a colour here; keep the draw so the layout stays the same
         const color = TINTS[Math.floor(styleRand() * TINTS.length)];
         const style = pickFacade(styleRand, h);
         addBuilding(x0, z0, x1, z1, 0, h, color, style);
@@ -93,7 +101,7 @@ export function createCity(scene, { seed = 1337, blocks = 10, blockSize = 44, ro
   boxGeo.translate(0, 0.5, 0); // origin at the base
   const roofMat = createRoofMaterial();
   FACADES.forEach((facade, styleIdx) => {
-    const list = buildings.filter((b) => b.style === styleIdx);
+    const list = buildings.concat(scenery).filter((b) => b.style === styleIdx);
     if (!list.length) return;
     const mesh = new THREE.InstancedMesh(boxGeo, createBuildingMaterials(facade, roofMat), list.length);
     list.forEach((b, idx) => {

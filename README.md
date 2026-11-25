@@ -41,6 +41,7 @@ src/
   gadgets/              Inventions: grapple.js, jetpack.js
   world/                Environments: procedural city, PBR textures (world-space UVs), sky + lighting
 public/textures/        CC0 PBR texture sets from ambientCG (see CREDITS.md)
+public/sky/             CC0 HDR sky from Poly Haven (see CREDITS.md)
 scripts/                optimize-textures.mjs: re-encode textures for the web
   ui/hud.js             HUD (fuel, speed, view, crosshair)
 ```
