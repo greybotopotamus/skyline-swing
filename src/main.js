@@ -3,6 +3,7 @@ import { Input } from './core/input.js';
 import { createCity } from './world/city.js';
 import { createRoadMarkings } from './world/roads.js';
 import { Traffic } from './world/traffic.js';
+import { Pedestrians } from './world/pedestrians.js';
 import { createSky } from './world/sky.js';
 import { setMaxAnisotropy } from './world/textures.js';
 import { Player } from './player/player.js';
@@ -41,6 +42,8 @@ const sky = createSky(scene, renderer);
 const world = createCity(scene);
 createRoadMarkings(scene, world.roadGrid);
 const traffic = new Traffic(scene, world, { count: 90 });
+const pedestrians = new Pedestrians(scene, world, traffic, { count: 220 });
+traffic.pedestrians = pedestrians;
 const input = new Input(canvas);
 const player = new Player(world);
 const model = new PlayerModel(scene);
@@ -132,6 +135,7 @@ function frame() {
   }
 
   traffic.updateVisual();
+  pedestrians.update(dt, player);
   rig.update(dt, player);
   model.update(dt, player, { thrusting: jetpack.thrusting, visible: rig.mode === 'third', grapple });
 
@@ -150,4 +154,4 @@ function frame() {
 requestAnimationFrame(frame);
 
 // Handy for debugging from the browser console.
-window.game = { THREE, scene, camera, renderer, world, player, rig, grapple, jetpack, input, traffic };
+window.game = { THREE, scene, camera, renderer, world, player, rig, grapple, jetpack, input, traffic, pedestrians };

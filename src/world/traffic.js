@@ -251,6 +251,7 @@ export class Traffic {
     car.mode = 'arc';
     car.arc = {
       C, a, b, r: a.length(), theta: 0,
+      fromAxis: car.axis, fromDir: car.dir, fromLine: car.line,
       after: { axis: newAxis, dir: newDir, line: car.nextK, s: newAxis === 'x' ? exit.x : exit.z, nextK: car.line + newDir },
     };
   }
@@ -307,6 +308,27 @@ export class Traffic {
       target = Math.min(target, Math.max(0, gap - 2.5) * 1.4);
     }
 
+    // Yield to pedestrians on a crosswalk in front.
+    for (const p of this.pedestrians?.crossing ?? []) {
+      const rx = p.pos.x - car.pos.x;
+      const rz = p.pos.z - car.pos.z;
+      const along = rx * H.x + rz * H.z;
+      // Only people clearly in front of the bumper; anyone level with the car waits for it instead.
+      if (along - car.len / 2 > 0.8 && along < 22 && Math.abs(rx * R.x + rz * R.z) < car.wid / 2 + 1.2) {
+        target = Math.min(target, Math.sqrt(2 * 5 * Math.max(0, along - car.len / 2 - 2.5)));
+      }
+    }
+
+    // Turning: check the crosswalk on the street we're turning into.
+    if (car.maneuver !== 'straight' && this.pedestrians && this._exitCrosswalkBusy(car)) {
+      if (car.mode === 'straight') {
+        const toEntry = (this.c(car.nextK) - car.s) * car.dir - this.hr - car.len / 2;
+        target = Math.min(target, Math.sqrt(2 * 5 * Math.max(0, toEntry + 1)));
+      } else if (car.arc.theta < 0.45) {
+        target = 0; // just started the turn: wait
+      }
+    }
+
     // Stop for the player standing or walking in front.
     if (player) {
       const rx = player.pos.x - car.pos.x;
@@ -318,6 +340,25 @@ export class Traffic {
       }
     }
     return target;
+  }
+
+  // Is anyone on the crosswalk of the street this car is about to turn into?
+  _exitCrosswalkBusy(car) {
+    const axis = car.mode === 'arc' ? car.arc.fromAxis : car.axis;
+    const dir = car.mode === 'arc' ? car.arc.fromDir : car.dir;
+    const line = car.mode === 'arc' ? car.arc.fromLine : car.line;
+    const k = car.mode === 'arc' ? car.arc.after.line : car.nextK;
+    const H = hvec(axis, dir);
+    const R = rightOf(H);
+    const out = car.maneuver === 'right' ? R : R.clone().negate();
+    const cx = (axis === 'x' ? this.c(k) : this.c(line)) + out.x * (this.hr + 2.1);
+    const cz = (axis === 'x' ? this.c(line) : this.c(k)) + out.z * (this.hr + 2.1);
+    for (const p of this.pedestrians.crossing) {
+      const rx = p.pos.x - cx;
+      const rz = p.pos.z - cz;
+      if (Math.abs(rx * out.x + rz * out.z) < 2.2 && Math.abs(rx * H.x + rz * H.z) < this.hr + 0.5) return true;
+    }
+    return false;
   }
 
   // Is there oncoming traffic about to go through car's next intersection?
