@@ -42,7 +42,7 @@ src/
   gadgets/              Inventions: grapple.js, jetpack.js
   world/                Environments: procedural city, PBR textures (world-space UVs), sky + lighting,
                         road markings (roads.js), traffic sim + lights (traffic.js), car models (carModels.js),
-                        pedestrians (pedestrians.js), trees (trees.js), rooftop props + street lamps (props.js)
+                        pedestrians (pedestrians.js) + ragdoll physics (ragdoll.js), trees (trees.js), rooftop props + street lamps (props.js)
   render/post.js        Post-processing (GTAO ambient occlusion, bloom, MSAA, colour grade) + quality levels
 public/textures/        CC0 PBR texture sets from ambientCG (see CREDITS.md)
 public/sky/             CC0 HDR sky from Poly Haven (see CREDITS.md)
